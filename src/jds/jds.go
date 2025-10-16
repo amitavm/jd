@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/amitavm/jd/pkg/jd"
 )
 
 // --- start: globals (constants, variables and data structures.)
@@ -14,24 +16,6 @@ const (
 	// Max size (in bytes) for a (POST request) payload.
 	maxPayloadSize = 4 * (1 << 10)
 )
-
-// Structure of a generic POST request; we get all commands as POST requests.
-//
-// Note that all commands take one argument at most, and Arg is always a string,
-// even for commands that take int arguments. This is done for uniformity of the
-// JSON structure. The commands taking int arguments expect the string arg to be
-// convertible to an int, otherwise they will return http.StatusBadRequest.
-type Request struct {
-	Name string `json:"name"` // The actual/specific command name.
-	Arg  string `json:"arg"`  // Argument for the command, if any.
-	PID  int    `json:"pid"`  // PID of the client process.
-}
-
-// Structure of a generic response.
-type Response struct {
-	Status int    `json:"status"` // The HTTP status code, e.g., http.StatusOK.
-	Msg    string `json:"msg"`    // Mostly used for error messages.
-}
 
 // --- end: globals
 
@@ -65,7 +49,7 @@ func cmdHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse and process the request/command.
-	var cmd Request
+	var cmd jd.Request
 	if err := decoder.Decode(&cmd); err != nil {
 		log.Printf("failed to deserialize JSON: %v\n", err)
 		http.Error(w, "invalid JSON payload", http.StatusBadRequest)
@@ -81,7 +65,7 @@ func cmdHandler(w http.ResponseWriter, r *http.Request) {
 	// Send the JSON response.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	resp := Response{
+	resp := jd.Response{
 		Status: http.StatusOK,
 		Msg:    fmt.Sprintf("command '%s' processed successfully", cmd.Name),
 	}
@@ -115,7 +99,7 @@ func reqDecoder(w http.ResponseWriter, r *http.Request) (*json.Decoder, error) {
 
 // processCommand processes a generic command.
 // (This is just a stub for now; the actual implementation will come next.)
-func processCommand(cmd Request) error {
+func processCommand(cmd jd.Request) error {
 	log.Printf("Received command '%s' with arg '%s' [pid %d]\n", cmd.Name, cmd.Arg, cmd.PID)
 	return nil
 }
