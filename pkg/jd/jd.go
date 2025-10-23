@@ -8,13 +8,7 @@ package jd
 // JSON structure. The commands taking int arguments expect the string arg to be
 // convertible to an int, otherwise they will return http.StatusBadRequest.
 type Request struct {
-	Name string `json:"name"` // The actual/specific command name.
-	Arg  string `json:"arg"`  // Argument for the command, if any.
-	PID  int    `json:"pid"`  // PID of the client process.
-}
-
-// Structure of a generic response.
-type Response struct {
-	Status int    `json:"status"` // The HTTP status code, e.g., http.StatusOK.
-	Msg    string `json:"msg"`    // Mostly used for error messages.
+	Cmd string `json:"cmd"` // The command to execute.
+	Arg string `json:"arg"` // Argument for the command, if any.
+	PID int    `json:"pid"` // PID of the client process.
 }
