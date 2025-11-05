@@ -23,12 +23,12 @@ command line.
 
 JD is built in three parts:
 
-- The frontend (FE), the code that runs in Bash.  This is where the `jd` command
-  lives, as a Bash function.
+- The frontend (FE), the code that runs in Bash.  This is where the user command
+  `jd` lives, as a Bash function.
 - JDI, the JD Interface that, well, interfaces b/w the FE and JDS (the JD
   Server, described below).  It takes commands from the FE, and translates them
-  to appropriate HTTP requests to be sent to JDS.  It similarly relays the
-  responses from JDS back to Bash.
+  to appropriate HTTP requests to be sent to JDS.  It similarly translates the
+  responses from JDS to commands that Bash can execute.
 - JDS, the JD Server.  It is implemented as an HTTP API.  It runs in the
   background as a server, maintains the directory lists for any number of client
   processes (presumably command shells), and also performs all the "business
@@ -38,14 +38,17 @@ JD is built in three parts:
 
 JDS implements an HTTP based API, for the simple reason that it's easy to do
 that in most modern languages.  (We are using Go.)  But please note that it's
-only an HTTP API, and not the usual REST kind of API.  That means it doesn't
-implement the standard CRUD methods.
+only an HTTP API, and not the usual REST kind of API: it doesn't implement the
+usual CRUD methods.
 
 By design, JDS needs to support a variety of commands, many more than the number
 of HTTP verbs.  We also want to make it possible to add more commands in the
 future, if need be.  For these reasons, we have used a simple (and not uncommon)
 convention of using a POST endpoint called `cmd` to implement all such "custom"
 commands.
+
+The response from JDS is always the current, complete state of the
+dirlist---unless some error occurs.
 
 ## Control Flow
 
@@ -81,7 +84,7 @@ line, where DIR stands for the (absolute or relative) pathname of a directory.
 
   We send the PID of the client process (Bash) with each request to JDS because
   JDS maintains directory lists for multiple shells, so it needs to know the
-  specific shell instnace it needs to work on behalf of.
+  specific shell instance it needs to work on behalf of.
 
 ### Command `jd -l`
 
