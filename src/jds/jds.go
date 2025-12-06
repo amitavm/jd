@@ -28,7 +28,7 @@ const (
 )
 
 // Map command names to their processors.
-var CmdProcessor = map[string]func(w http.ResponseWriter, req *jd.Request){
+var CmdProcessor = map[string]func(w http.ResponseWriter, req *jd.Request) error{
 	CmdJmpDir: jumpToDir,
 	CmdJmpFwd: jumpForward,
 	CmdJmpBwd: jumpBackward,
@@ -125,7 +125,14 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	processRequest(w, &req)
+	if err := processRequest(w, &req); err != nil {
+		errDetail := fmt.Sprintf("failed to process request: %v", err)
+		log.Println(errLogPrefix + errDetail)
+		SendErrorResponse(w, r, "Failed to process request", errDetail, http.StatusBadRequest, "")
+		return
+	}
+
+	log.Printf("reqHandler: success: processed command '%s'\n", req.Cmd)
 }
 
 // reqDecoder enforces some best practices for POST requests and returns a
@@ -147,11 +154,15 @@ func reqDecoder(w http.ResponseWriter, r *http.Request) (*json.Decoder, error) {
 }
 
 // processRequest processes all incoming requests/commands.
-func processRequest(w http.ResponseWriter, req *jd.Request) {
-	CmdProcessor[req.Cmd](w, req)
+func processRequest(w http.ResponseWriter, req *jd.Request) error {
+	proc, ok := CmdProcessor[req.Cmd]
+	if !ok {
+		return fmt.Errorf("unknown command '%s'", req.Cmd)
+	}
+	return proc(w, req)
 }
 
-func jumpToDir(w http.ResponseWriter, req *jd.Request) {
+func jumpToDir(w http.ResponseWriter, req *jd.Request) error {
 	dList := getDirList(req.PID)
 
 	// Add the target dir (in req.Arg) to the end of the dirlist.
@@ -161,33 +172,38 @@ func jumpToDir(w http.ResponseWriter, req *jd.Request) {
 	dList.PrevIdx = dList.CurIdx
 	dList.CurIdx = len(dList.Dirs) - 1
 
-	encodeDirList(w, req)
+	return encodeDirList(w, req)
 }
 
 // jumpToIdx jumps to a specific index in the dirlist for a given client (PID).
-func jumpToIdx(w http.ResponseWriter, req *jd.Request) {
+func jumpToIdx(w http.ResponseWriter, req *jd.Request) error {
+	return nil
 }
 
 // jumpForward jumps a specified number of steps forward in the dirlist for a
 // given client (PID).
-func jumpForward(w http.ResponseWriter, req *jd.Request) {
+func jumpForward(w http.ResponseWriter, req *jd.Request) error {
+	return nil
 }
 
 // jumpBackward jumps a specified number of steps backward in the dirlist for a
 // given client (PID).
-func jumpBackward(w http.ResponseWriter, req *jd.Request) {
+func jumpBackward(w http.ResponseWriter, req *jd.Request) error {
+	return nil
 }
 
 // encodeDirList encodes/serializes the current DirList object for a specified
 // client (PID) into the response.
-func encodeDirList(w http.ResponseWriter, req *jd.Request) {
+func encodeDirList(w http.ResponseWriter, req *jd.Request) error {
 	dList := getDirList(req.PID)
 	setupResponseHeader(w, http.StatusOK)
 	if err := json.NewEncoder(w).Encode(dList); err != nil {
 		log.Printf("failed to encode JSON: %v\n", err)
 		// This error should almost never occur.
 		// But in case it ever does, it will be in the server logs.
+		return err
 	}
+	return nil
 }
 
 // setupResponseHeader prepares an HTTP response to be sent back to JDI.
