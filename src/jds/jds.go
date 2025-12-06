@@ -85,10 +85,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// rootHandler handles calls to the root URL.
-// This is mostly used for testing; it doesn't implement any JD functionality.
+// rootHandler handles calls to the root URL ("/").  This is mostly used for testing
+// and health-check; it doesn't implement any JD functionality.
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello from JDS!")
+	const resp = `{"status": "pass"}`
+	setupResponseHeader(w, http.StatusOK)
+	fmt.Fprintln(w, resp)
+	log.Printf("rootHandler: sent alive/healthy status response\n")
 }
 
 // reqHandler handles POST requests for all our "custom" commands.
