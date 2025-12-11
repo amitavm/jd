@@ -50,6 +50,57 @@ commands.
 The response from JDS is always the current, complete state of the
 dirlist---unless some error occurs.
 
+### Switching to UDS
+
+I'm switching to using a Unix Domain Socket (UDS) instead of a TCP port---on
+Gemini's suggestion---for the client-server comm.  UDS apparently have the
+following benefits over TCP ports:
+
+- There's no port-collision problem.  Multiple users on the same system can run
+  multiple instances of JDS without worrying about port collisions.
+- UDS are apparently more *secure* than TCP ports?  Something to do with the
+  fact that they reside in the filesystem and so are governed by the filesytem
+  permissions, etc.  I didn't quite understand this very well though.
+- And they are also *faster* because they bypass the network stack?  This one is
+  easier to understand, but how much faster, really?  Will it make a differene
+  for our use case (interactive human use)?  Still, this is definitely a plus.
+
+Anyway, this *seems* like the right thing to do.  And seems to work too!
+
+This move will also require a change on the client side.  Making the change to
+our JDI client should not be hard, as that will require using some well
+understood and well documented standard library functions, and we own the code.
+
+However, using external HTTP clients for testing---like cURL---is a different
+story: there's no standard way of making them use a UDS instead of a TCP port.
+For cURL, the command line that seems to work for me is:
+
+```console
+$ curl -s --unix-socket ~/.jd/jd.sock http://localhost/cmd -H 'Content-Type: application/json' -d @cmd.json | jq .
+```
+
+The important bit is the `--unix-socket` switch in the command line, specifying
+the filesystem node being used for the UDS.  Note that we still specify the full
+endpoint URL---and not just `/cmd`, for example---but cURL apparently ignores
+the `http://localhost` part, and extracts the endpoint URL `/cmd` from it.
+
+Also, note that it's a POST request, but I haven't explicitly used a `-X POST`
+switch in the command line.  cURL is able to deduce it automagically because of
+the `-d @cmd.json` switch to send the contents of the `cmd.json` file in the
+(POST) request body. In fact, some versions of cURL will explicitly *complain*
+about a redundant `-X` command line switch if you do mention it!
+
+(The `jq .` command at the end of the pipeline is to pretty-print the JSON
+output. I have shown it here for completeness, but it's not relevant to this
+discussion.  You can, of course, use any other JSON pretty-printer in its place;
+`python -m json.tool` also works well, provided you have a standard Python
+installation.)
+
+So cURL was easy to adapt, but that may not be the case with all other HTTP
+clients.  Tools like Postman could be more challenging to work with.  And that's
+understandable: many of them are built more for a Windows environment, whereas
+UDS is more of a Unix thing.
+
 ## Control Flow
 
 In this section, we outline some representative use cases and how the control

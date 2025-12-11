@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/amitavm/jd/pkg/jd"
@@ -79,10 +81,42 @@ type ProblemDetails struct {
 
 // The entry point for JDS.
 func main() {
+	// Define/register our routes/endpoints.
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/cmd", reqHandler)
-	fmt.Println("starting server on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	// Make sure we have a dedicated work directory for JD.
+	// Our UDS (Unix Domain Socket) will reside under it.
+	jdDir := os.Getenv("HOME") + "/.jd"
+	if err := os.MkdirAll(jdDir, 0744); err != nil {
+		log.Fatalf("failed to create work dir for JD: %s\n", err)
+	}
+
+	// Build the path to the filesystem node to use for the UDS.
+	// And delete it if it exists from a previous run.
+	sockPath := jdDir + "/jd.sock"
+	if err := os.RemoveAll(sockPath); err != nil {
+		log.Fatalf("failed to delete older socket file: %s\n", err)
+	}
+
+	// NOTE that we have used the methods MkdirAll() and RemoveAll() above, even
+	// though the UDS is a simple node: it's a file, not a directory.   (They
+	// are basically equivalents of the commands "mkdir -p" and "rm -fr",
+	// respectively.) That's done to avoid trivial failure cases like when the
+	// directory to create exists already, or the file to delete doesn't exist.
+	// Otherwise Mkdir() and Remove() would work too.
+
+	// The rest is the listen-and-serve part.
+	listener, err := net.Listen("unix", sockPath)
+	if err != nil {
+		log.Fatalf("failed to listen on UDS '%s': %s\n", sockPath, err)
+	}
+	defer listener.Close()
+
+	log.Printf("JDS: JD server listening for incoming requests on %s\n", sockPath)
+	if err := http.Serve(listener, nil); err != nil {
+		log.Fatalf("failed to start HTTP server: %s\n", err)
+	}
 }
 
 // rootHandler handles calls to the root URL ("/").  This is mostly used for testing
