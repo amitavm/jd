@@ -236,13 +236,53 @@ func jumpToIdx(w http.ResponseWriter, req *jd.Request) error {
 // jumpForward jumps a specified number of steps forward in the dirlist for a
 // given client (PID).
 func jumpForward(w http.ResponseWriter, req *jd.Request) error {
-	return nil
+	dList := getDirList(req.PID)
+
+	// Get the number of steps to jump forward; make sure it is valid.
+	n, err := strconv.Atoi(req.Arg)
+	if err != nil {
+		return fmt.Errorf("bad argument: invalid integer '%s'", req.Arg)
+	}
+
+	newIdx := dList.CurIdx + n
+	if n == 0 || newIdx > len(dList.Dirs)-1 || newIdx < 0 {
+		return fmt.Errorf("bad argument: cannot jump '%d' steps forward", n)
+	}
+	// NOTE that we allow n to be negative.  To take a specific example, jumping
+	// -2 steps forward is the same as jumping 2 steps backward, as long as we
+	// don't go below index 0.
+
+	// This command does not change the dirlist.  Just update the indices for
+	// the previous/current working directories and return the updated state.
+	dList.PrevIdx = dList.CurIdx
+	dList.CurIdx = newIdx
+	return encodeDirList(w, req)
 }
 
 // jumpBackward jumps a specified number of steps backward in the dirlist for a
 // given client (PID).
 func jumpBackward(w http.ResponseWriter, req *jd.Request) error {
-	return nil
+	dList := getDirList(req.PID)
+
+	// Get the number of steps to jump backward; make sure it is valid.
+	n, err := strconv.Atoi(req.Arg)
+	if err != nil {
+		return fmt.Errorf("bad argument: invalid integer '%s'", req.Arg)
+	}
+
+	newIdx := dList.CurIdx - n
+	if n == 0 || newIdx > len(dList.Dirs)-1 || newIdx < 0 {
+		return fmt.Errorf("bad argument: cannot jump '%d' steps backward", n)
+	}
+	// NOTE that we allow n to be negative.  To take a specific example, jumping
+	// -2 steps backward is the same as jumping 2 steps forward, as long as we
+	// don't go beyond the last index in the dirlist.
+
+	// This command does not change the dirlist.  Just update the indices for
+	// the previous/current working directories and return the updated state.
+	dList.PrevIdx = dList.CurIdx
+	dList.CurIdx = newIdx
+	return encodeDirList(w, req)
 }
 
 // encodeDirList encodes/serializes the current DirList object for a specified
