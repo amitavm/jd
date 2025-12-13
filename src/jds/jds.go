@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/amitavm/jd/pkg/jd"
@@ -209,9 +210,27 @@ func jumpToDir(w http.ResponseWriter, req *jd.Request) error {
 	return encodeDirList(w, req)
 }
 
-// jumpToIdx jumps to a specific index in the dirlist for a given client (PID).
+// jumpToIdx jumps to a specified index in the dirlist for a given client (PID).
 func jumpToIdx(w http.ResponseWriter, req *jd.Request) error {
-	return nil
+	dList := getDirList(req.PID)
+
+	// Get the index to jump to, and make sure it looks good/valid.
+	idx, err := strconv.Atoi(req.Arg)
+	if err != nil {
+		return fmt.Errorf("bad argument: invalid integer '%s'", req.Arg)
+	}
+	if idx < 0 || idx > len(dList.Dirs)-1 {
+		return fmt.Errorf("bad argument: index '%d' is out of bounds", idx)
+	}
+	if idx == dList.CurIdx {
+		return fmt.Errorf("command ignored: index '%d' is already the PWD", idx)
+	}
+
+	// This command does not change the dirlist.  Just update the indices for
+	// the previous/current working directories and return the updated state.
+	dList.PrevIdx = dList.CurIdx
+	dList.CurIdx = idx
+	return encodeDirList(w, req)
 }
 
 // jumpForward jumps a specified number of steps forward in the dirlist for a
